@@ -1,0 +1,440 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenTelemetry Trace Viewer</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #2c3e50;
+            --border-color: #ddd;
+            --span-bg: #f8f9fa;
+            --span-hover: #e9ecef;
+            --timeline-bg: #f8f9fa;
+            --timeline-span: #007bff;
+            --event-bg: #fff;
+            --event-name: #007bff;
+            --trace-id: #666;
+            --attributes-color: #666;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --border-color: #333;
+            --span-bg: #2d2d2d;
+            --span-hover: #3d3d3d;
+            --timeline-bg: #2d2d2d;
+            --timeline-span: #4dabf7;
+            --event-bg: #2d2d2d;
+            --event-name: #4dabf7;
+            --trace-id: #a0a0a0;
+            --attributes-color: #a0a0a0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--span-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button:hover {
+            background-color: var(--span-hover);
+        }
+
+        .trace-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--span-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .trace-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .trace-id {
+            font-family: monospace;
+            color: var(--trace-id);
+        }
+
+        .span-container {
+            margin-left: 20px;
+            border-left: 2px solid var(--border-color);
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .span {
+            background-color: var(--span-bg);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .span:hover, .span.selected {
+            background-color: var(--span-hover);
+        }
+
+        .span-name {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .span-time {
+            font-size: 0.9em;
+            color: var(--attributes-color);
+            margin-left: 10px;
+        }
+
+        .span-duration {
+            font-size: 0.9em;
+            color: #28a745;
+            margin-left: 10px;
+        }
+
+        .attributes {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: var(--attributes-color);
+        }
+
+        .event {
+            margin-left: 20px;
+            padding: 5px;
+            background-color: var(--event-bg);
+            border-radius: 3px;
+            margin-top: 5px;
+        }
+
+        .event-name {
+            color: var(--event-name);
+            font-weight: 500;
+        }
+
+        .event-time {
+            font-size: 0.8em;
+            color: var(--attributes-color);
+            margin-left: 5px;
+        }
+
+        .timeline {
+            position: relative;
+            height: 40px;
+            background-color: var(--timeline-bg);
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .timeline-span {
+            position: absolute;
+            height: 20px;
+            background-color: var(--timeline-span);
+            border-radius: 2px;
+            top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-span:hover {
+            opacity: 0.8;
+        }
+
+        .help-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--span-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .help-dialog.visible {
+            display: block;
+        }
+
+        .help-dialog h3 {
+            margin-top: 0;
+        }
+
+        .help-dialog ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .help-dialog li {
+            margin: 5px 0;
+        }
+    </style>
+    <script>
+        let selectedSpan = null;
+        let currentTraceIndex = 0;
+        const traces = [{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4738","spans":[{"span_id":"00f067aa0ba902bb","parent_span_id":"","name":"HTTP GET /api/products","start_time":"2024-03-06T10:02:00Z","end_time":"2024-03-06T10:02:00.5Z","attributes":{"http.method":"GET","http.status_code":"200","http.url":"http://api.example.com/api/products"},"events":null}],"start_time":"2024-03-06T10:02:00Z","end_time":"2024-03-06T10:02:00.5Z","attributes":{"service.name":"product-service"}},{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4739","spans":[{"span_id":"00f067aa0ba902bc","parent_span_id":"","name":"HTTP PUT /api/cart","start_time":"2024-03-06T10:02:01Z","end_time":"2024-03-06T10:02:01.2Z","attributes":{"http.method":"PUT","http.status_code":"200","http.url":"http://api.example.com/api/cart"},"events":null},{"span_id":"00f067aa0ba902bd","parent_span_id":"00f067aa0ba902bc","name":"Redis Update Cart","start_time":"2024-03-06T10:02:01.1Z","end_time":"2024-03-06T10:02:01.15Z","attributes":{"db.operation":"update","db.system":"redis"},"events":null}],"start_time":"2024-03-06T10:02:01Z","end_time":"2024-03-06T10:02:01.2Z","attributes":{"service.name":"cart-service"}},{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4740","spans":[{"span_id":"00f067aa0ba902be","parent_span_id":"","name":"HTTP GET /api/recommendations","start_time":"2024-03-06T10:02:02Z","end_time":"2024-03-06T10:02:03Z","attributes":{"http.method":"GET","http.status_code":"200","http.url":"http://api.example.com/api/recommendations"},"events":null},{"span_id":"00f067aa0ba902bf","parent_span_id":"00f067aa0ba902be","name":"ML Model Prediction","start_time":"2024-03-06T10:02:02.2Z","end_time":"2024-03-06T10:02:02.8Z","attributes":{"ml.model.name":"recommendation_engine","ml.operation":"predict"},"events":null}],"start_time":"2024-03-06T10:02:02Z","end_time":"2024-03-06T10:02:03Z","attributes":{"service.name":"recommendation-service"}}];
+
+        function toggleSpan(spanId) {
+            const span = document.getElementById(spanId);
+            const events = span.getElementsByClassName('event');
+            for (let event of events) {
+                event.style.display = event.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function toggleTheme() {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+        }
+
+        function clearTraces() {
+            const container = document.querySelector('.trace-container');
+            container.innerHTML = '';
+        }
+
+        function toggleHelp() {
+            const dialog = document.getElementById('help-dialog');
+            dialog.classList.toggle('visible');
+        }
+
+        function selectSpan(spanId) {
+            if (selectedSpan) {
+                document.getElementById(selectedSpan).classList.remove('selected');
+            }
+            selectedSpan = spanId;
+            document.getElementById(spanId).classList.add('selected');
+        }
+
+        function navigateTraces(direction) {
+            const containers = document.querySelectorAll('.trace-container > div');
+            currentTraceIndex = (currentTraceIndex + direction + containers.length) % containers.length;
+            containers[currentTraceIndex].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function navigateSpans(direction) {
+            const spans = document.querySelectorAll('.span');
+            const currentIndex = Array.from(spans).findIndex(span => span.id === selectedSpan);
+            const nextIndex = (currentIndex + direction + spans.length) % spans.length;
+            selectSpan(spans[nextIndex].id);
+            spans[nextIndex].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'h':
+                case 'ArrowLeft':
+                    navigateTraces(-1);
+                    break;
+                case 'l':
+                case 'ArrowRight':
+                    navigateTraces(1);
+                    break;
+                case 'k':
+                case 'ArrowUp':
+                    navigateSpans(-1);
+                    break;
+                case 'j':
+                case 'ArrowDown':
+                    navigateSpans(1);
+                    break;
+                case '?':
+                    toggleHelp();
+                    break;
+                case 'Escape':
+                    document.getElementById('help-dialog').classList.remove('visible');
+                    break;
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="controls">
+        <button class="button" onclick="toggleTheme()">Toggle Theme</button>
+        <button class="button" onclick="clearTraces()">Clear Traces</button>
+        <button class="button" onclick="toggleHelp()">Help (?)</button>
+    </div>
+
+    <div id="help-dialog" class="help-dialog">
+        <h3>Keyboard Shortcuts</h3>
+        <ul>
+            <li>← or h: Move up the trace summary list</li>
+            <li>→ or l: Move down the trace summary list</li>
+            <li>↑ or k: Move up the span list</li>
+            <li>↓ or j: Move down the span list</li>
+            <li>?: Show/hide this help dialog</li>
+            <li>ESC: Close this dialog</li>
+        </ul>
+    </div>
+
+    <div class="trace-container">
+        
+        <div class="trace-header">
+            <h2>Trace ID: <span class="trace-id">4bf92f3577b34da6a3ce929d0e0e4738</span></h2>
+            <div class="timeline">
+                
+                
+                <div class="timeline-span" style="left: 5.6990644e&#43;10%; width: 16.666666666666664%;" 
+                     title="HTTP GET /api/products" onclick="selectSpan('span-00f067aa0ba902bb')"></div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902bb" onclick="toggleSpan('span-00f067aa0ba902bb')">
+                <span class="span-name">HTTP GET /api/products</span>
+                <span class="span-time">10:02:00.000</span>
+                <span class="span-duration">500ms</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>http.method:</strong> GET</div>
+                    
+                    <div><strong>http.status_code:</strong> 200</div>
+                    
+                    <div><strong>http.url:</strong> http://api.example.com/api/products</div>
+                    
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        
+        <div class="trace-header">
+            <h2>Trace ID: <span class="trace-id">4bf92f3577b34da6a3ce929d0e0e4739</span></h2>
+            <div class="timeline">
+                
+                
+                <div class="timeline-span" style="left: 5.6990644033333336e&#43;10%; width: 6.666666666666667%;" 
+                     title="HTTP PUT /api/cart" onclick="selectSpan('span-00f067aa0ba902bc')"></div>
+                
+                
+                <div class="timeline-span" style="left: 5.6990644036666664e&#43;10%; width: 1.6666666666666667%;" 
+                     title="Redis Update Cart" onclick="selectSpan('span-00f067aa0ba902bd')"></div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902bc" onclick="toggleSpan('span-00f067aa0ba902bc')">
+                <span class="span-name">HTTP PUT /api/cart</span>
+                <span class="span-time">10:02:01.000</span>
+                <span class="span-duration">200ms</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>http.method:</strong> PUT</div>
+                    
+                    <div><strong>http.status_code:</strong> 200</div>
+                    
+                    <div><strong>http.url:</strong> http://api.example.com/api/cart</div>
+                    
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902bd" onclick="toggleSpan('span-00f067aa0ba902bd')">
+                <span class="span-name">Redis Update Cart</span>
+                <span class="span-time">10:02:01.100</span>
+                <span class="span-duration">50ms</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>db.operation:</strong> update</div>
+                    
+                    <div><strong>db.system:</strong> redis</div>
+                    
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        
+        <div class="trace-header">
+            <h2>Trace ID: <span class="trace-id">4bf92f3577b34da6a3ce929d0e0e4740</span></h2>
+            <div class="timeline">
+                
+                
+                <div class="timeline-span" style="left: 5.6990644066666664e&#43;10%; width: 33.33333333333333%;" 
+                     title="HTTP GET /api/recommendations" onclick="selectSpan('span-00f067aa0ba902be')"></div>
+                
+                
+                <div class="timeline-span" style="left: 5.6990644073333336e&#43;10%; width: 20%;" 
+                     title="ML Model Prediction" onclick="selectSpan('span-00f067aa0ba902bf')"></div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902be" onclick="toggleSpan('span-00f067aa0ba902be')">
+                <span class="span-name">HTTP GET /api/recommendations</span>
+                <span class="span-time">10:02:02.000</span>
+                <span class="span-duration">1s</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>http.method:</strong> GET</div>
+                    
+                    <div><strong>http.status_code:</strong> 200</div>
+                    
+                    <div><strong>http.url:</strong> http://api.example.com/api/recommendations</div>
+                    
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902bf" onclick="toggleSpan('span-00f067aa0ba902bf')">
+                <span class="span-name">ML Model Prediction</span>
+                <span class="span-time">10:02:02.200</span>
+                <span class="span-duration">600ms</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>ml.model.name:</strong> recommendation_engine</div>
+                    
+                    <div><strong>ml.operation:</strong> predict</div>
+                    
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        
+    </div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+[
+  {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4738",
+    "spans": [
+      {
+        "span_id": "00f067aa0ba902bb",
+        "parent_span_id": "",
+        "name": "HTTP GET /api/products",
+        "start_time": "2024-03-06T10:02:00Z",
+        "end_time": "2024-03-06T10:02:00.5Z",
+        "attributes": {
+          "http.method": "GET",
+          "http.url": "http://api.example.com/api/products",
+          "http.status_code": "200"
+        }
+      }
+    ],
+    "start_time": "2024-03-06T10:02:00Z",
+    "end_time": "2024-03-06T10:02:00.5Z",
+    "attributes": {
+      "service.name": "product-service"
+    }
+  },
+  {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4739",
+    "spans": [
+      {
+        "span_id": "00f067aa0ba902bc",
+        "parent_span_id": "",
+        "name": "HTTP PUT /api/cart",
+        "start_time": "2024-03-06T10:02:01Z",
+        "end_time": "2024-03-06T10:02:01.2Z",
+        "attributes": {
+          "http.method": "PUT",
+          "http.url": "http://api.example.com/api/cart",
+          "http.status_code": "200"
+        }
+      },
+      {
+        "span_id": "00f067aa0ba902bd",
+        "parent_span_id": "00f067aa0ba902bc",
+        "name": "Redis Update Cart",
+        "start_time": "2024-03-06T10:02:01.1Z",
+        "end_time": "2024-03-06T10:02:01.15Z",
+        "attributes": {
+          "db.system": "redis",
+          "db.operation": "update"
+        }
+      }
+    ],
+    "start_time": "2024-03-06T10:02:01Z",
+    "end_time": "2024-03-06T10:02:01.2Z",
+    "attributes": {
+      "service.name": "cart-service"
+    }
+  },
+  {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4740",
+    "spans": [
+      {
+        "span_id": "00f067aa0ba902be",
+        "parent_span_id": "",
+        "name": "HTTP GET /api/recommendations",
+        "start_time": "2024-03-06T10:02:02Z",
+        "end_time": "2024-03-06T10:02:03Z",
+        "attributes": {
+          "http.method": "GET",
+          "http.url": "http://api.example.com/api/recommendations",
+          "http.status_code": "200"
+        }
+      },
+      {
+        "span_id": "00f067aa0ba902bf",
+        "parent_span_id": "00f067aa0ba902be",
+        "name": "ML Model Prediction",
+        "start_time": "2024-03-06T10:02:02.2Z",
+        "end_time": "2024-03-06T10:02:02.8Z",
+        "attributes": {
+          "ml.model.name": "recommendation_engine",
+          "ml.operation": "predict"
+        }
+      }
+    ],
+    "start_time": "2024-03-06T10:02:02Z",
+    "end_time": "2024-03-06T10:02:03Z",
+    "attributes": {
+      "service.name": "recommendation-service"
+    }
+  }
+] 

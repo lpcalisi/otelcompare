@@ -1,0 +1,438 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenTelemetry Trace Viewer</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #2c3e50;
+            --border-color: #ddd;
+            --span-bg: #f8f9fa;
+            --span-hover: #e9ecef;
+            --timeline-bg: #f8f9fa;
+            --timeline-span: #007bff;
+            --event-bg: #fff;
+            --event-name: #007bff;
+            --trace-id: #666;
+            --attributes-color: #666;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --border-color: #333;
+            --span-bg: #2d2d2d;
+            --span-hover: #3d3d3d;
+            --timeline-bg: #2d2d2d;
+            --timeline-span: #4dabf7;
+            --event-bg: #2d2d2d;
+            --event-name: #4dabf7;
+            --trace-id: #a0a0a0;
+            --attributes-color: #a0a0a0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--span-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button:hover {
+            background-color: var(--span-hover);
+        }
+
+        .trace-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--span-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .trace-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .trace-id {
+            font-family: monospace;
+            color: var(--trace-id);
+        }
+
+        .span-container {
+            margin-left: 20px;
+            border-left: 2px solid var(--border-color);
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .span {
+            background-color: var(--span-bg);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .span:hover, .span.selected {
+            background-color: var(--span-hover);
+        }
+
+        .span-name {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .span-time {
+            font-size: 0.9em;
+            color: var(--attributes-color);
+            margin-left: 10px;
+        }
+
+        .span-duration {
+            font-size: 0.9em;
+            color: #28a745;
+            margin-left: 10px;
+        }
+
+        .attributes {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: var(--attributes-color);
+        }
+
+        .event {
+            margin-left: 20px;
+            padding: 5px;
+            background-color: var(--event-bg);
+            border-radius: 3px;
+            margin-top: 5px;
+        }
+
+        .event-name {
+            color: var(--event-name);
+            font-weight: 500;
+        }
+
+        .event-time {
+            font-size: 0.8em;
+            color: var(--attributes-color);
+            margin-left: 5px;
+        }
+
+        .timeline {
+            position: relative;
+            height: 40px;
+            background-color: var(--timeline-bg);
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .timeline-span {
+            position: absolute;
+            height: 20px;
+            background-color: var(--timeline-span);
+            border-radius: 2px;
+            top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-span:hover {
+            opacity: 0.8;
+        }
+
+        .help-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--span-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .help-dialog.visible {
+            display: block;
+        }
+
+        .help-dialog h3 {
+            margin-top: 0;
+        }
+
+        .help-dialog ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .help-dialog li {
+            margin: 5px 0;
+        }
+    </style>
+    <script>
+        let selectedSpan = null;
+        let currentTraceIndex = 0;
+        const traces = [{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4737","spans":[{"span_id":"00f067aa0ba902b8","parent_span_id":"","name":"HTTP POST /api/orders","start_time":"2024-03-06T10:01:00Z","end_time":"2024-03-06T10:01:02Z","attributes":{"http.method":"POST","http.status_code":"201","http.url":"http://api.example.com/api/orders"},"events":[{"time":"2024-03-06T10:01:00.1Z","name":"request_started","attributes":{"http.request_size":"2048"}}]},{"span_id":"00f067aa0ba902b9","parent_span_id":"00f067aa0ba902b8","name":"DB Insert Order","start_time":"2024-03-06T10:01:00.5Z","end_time":"2024-03-06T10:01:01.5Z","attributes":{"db.name":"orders_db","db.operation":"insert","db.system":"postgresql"},"events":[{"time":"2024-03-06T10:01:00.6Z","name":"db.query_started","attributes":{"db.statement":"INSERT INTO orders (id, user_id, amount) VALUES ($1, $2, $3)"}},{"time":"2024-03-06T10:01:01.4Z","name":"db.query_completed","attributes":{"db.rows_affected":"1"}}]},{"span_id":"00f067aa0ba902ba","parent_span_id":"00f067aa0ba902b8","name":"Send Order Confirmation Email","start_time":"2024-03-06T10:01:01.6Z","end_time":"2024-03-06T10:01:01.8Z","attributes":{"messaging.operation":"send","messaging.system":"smtp"},"events":[{"time":"2024-03-06T10:01:01.7Z","name":"email.sent","attributes":{"email.recipient":"user@example.com"}}]}],"start_time":"2024-03-06T10:01:00Z","end_time":"2024-03-06T10:01:02Z","attributes":{"service.name":"order-service"}}];
+
+        function toggleSpan(spanId) {
+            const span = document.getElementById(spanId);
+            const events = span.getElementsByClassName('event');
+            for (let event of events) {
+                event.style.display = event.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function toggleTheme() {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+        }
+
+        function clearTraces() {
+            const container = document.querySelector('.trace-container');
+            container.innerHTML = '';
+        }
+
+        function toggleHelp() {
+            const dialog = document.getElementById('help-dialog');
+            dialog.classList.toggle('visible');
+        }
+
+        function selectSpan(spanId) {
+            if (selectedSpan) {
+                document.getElementById(selectedSpan).classList.remove('selected');
+            }
+            selectedSpan = spanId;
+            document.getElementById(spanId).classList.add('selected');
+        }
+
+        function navigateTraces(direction) {
+            const containers = document.querySelectorAll('.trace-container > div');
+            currentTraceIndex = (currentTraceIndex + direction + containers.length) % containers.length;
+            containers[currentTraceIndex].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function navigateSpans(direction) {
+            const spans = document.querySelectorAll('.span');
+            const currentIndex = Array.from(spans).findIndex(span => span.id === selectedSpan);
+            const nextIndex = (currentIndex + direction + spans.length) % spans.length;
+            selectSpan(spans[nextIndex].id);
+            spans[nextIndex].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'h':
+                case 'ArrowLeft':
+                    navigateTraces(-1);
+                    break;
+                case 'l':
+                case 'ArrowRight':
+                    navigateTraces(1);
+                    break;
+                case 'k':
+                case 'ArrowUp':
+                    navigateSpans(-1);
+                    break;
+                case 'j':
+                case 'ArrowDown':
+                    navigateSpans(1);
+                    break;
+                case '?':
+                    toggleHelp();
+                    break;
+                case 'Escape':
+                    document.getElementById('help-dialog').classList.remove('visible');
+                    break;
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="controls">
+        <button class="button" onclick="toggleTheme()">Toggle Theme</button>
+        <button class="button" onclick="clearTraces()">Clear Traces</button>
+        <button class="button" onclick="toggleHelp()">Help (?)</button>
+    </div>
+
+    <div id="help-dialog" class="help-dialog">
+        <h3>Keyboard Shortcuts</h3>
+        <ul>
+            <li>← or h: Move up the trace summary list</li>
+            <li>→ or l: Move down the trace summary list</li>
+            <li>↑ or k: Move up the span list</li>
+            <li>↓ or j: Move down the span list</li>
+            <li>?: Show/hide this help dialog</li>
+            <li>ESC: Close this dialog</li>
+        </ul>
+    </div>
+
+    <div class="trace-container">
+        
+        <div class="trace-header">
+            <h2>Trace ID: <span class="trace-id">4bf92f3577b34da6a3ce929d0e0e4737</span></h2>
+            <div class="timeline">
+                
+                
+                <div class="timeline-span" style="left: 8.5485963e&#43;10%; width: 100%;" 
+                     title="HTTP POST /api/orders" onclick="selectSpan('span-00f067aa0ba902b8')"></div>
+                
+                
+                <div class="timeline-span" style="left: 8.5485963025e&#43;10%; width: 50%;" 
+                     title="DB Insert Order" onclick="selectSpan('span-00f067aa0ba902b9')"></div>
+                
+                
+                <div class="timeline-span" style="left: 8.548596308e&#43;10%; width: 10%;" 
+                     title="Send Order Confirmation Email" onclick="selectSpan('span-00f067aa0ba902ba')"></div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902b8" onclick="toggleSpan('span-00f067aa0ba902b8')">
+                <span class="span-name">HTTP POST /api/orders</span>
+                <span class="span-time">10:01:00.000</span>
+                <span class="span-duration">2s</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>http.method:</strong> POST</div>
+                    
+                    <div><strong>http.status_code:</strong> 201</div>
+                    
+                    <div><strong>http.url:</strong> http://api.example.com/api/orders</div>
+                    
+                </div>
+                
+                
+                <div class="events">
+                    
+                    <div class="event" style="display: none;">
+                        <span class="event-name">request_started</span>
+                        <span class="event-time">10:01:00.100</span>
+                        
+                        <div class="attributes">
+                            
+                            <div><strong>http.request_size:</strong> 2048</div>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902b9" onclick="toggleSpan('span-00f067aa0ba902b9')">
+                <span class="span-name">DB Insert Order</span>
+                <span class="span-time">10:01:00.500</span>
+                <span class="span-duration">1s</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>db.name:</strong> orders_db</div>
+                    
+                    <div><strong>db.operation:</strong> insert</div>
+                    
+                    <div><strong>db.system:</strong> postgresql</div>
+                    
+                </div>
+                
+                
+                <div class="events">
+                    
+                    <div class="event" style="display: none;">
+                        <span class="event-name">db.query_started</span>
+                        <span class="event-time">10:01:00.600</span>
+                        
+                        <div class="attributes">
+                            
+                            <div><strong>db.statement:</strong> INSERT INTO orders (id, user_id, amount) VALUES ($1, $2, $3)</div>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                    <div class="event" style="display: none;">
+                        <span class="event-name">db.query_completed</span>
+                        <span class="event-time">10:01:01.400</span>
+                        
+                        <div class="attributes">
+                            
+                            <div><strong>db.rows_affected:</strong> 1</div>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="span-container">
+            <div class="span" id="span-00f067aa0ba902ba" onclick="toggleSpan('span-00f067aa0ba902ba')">
+                <span class="span-name">Send Order Confirmation Email</span>
+                <span class="span-time">10:01:01.600</span>
+                <span class="span-duration">200ms</span>
+                
+                <div class="attributes">
+                    
+                    <div><strong>messaging.operation:</strong> send</div>
+                    
+                    <div><strong>messaging.system:</strong> smtp</div>
+                    
+                </div>
+                
+                
+                <div class="events">
+                    
+                    <div class="event" style="display: none;">
+                        <span class="event-name">email.sent</span>
+                        <span class="event-time">10:01:01.700</span>
+                        
+                        <div class="attributes">
+                            
+                            <div><strong>email.recipient:</strong> user@example.com</div>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        
+    </div>
+</body>
+</html>

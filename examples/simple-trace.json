@@ -1,0 +1,40 @@
+[
+  {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "spans": [
+      {
+        "span_id": "00f067aa0ba902b7",
+        "parent_span_id": "",
+        "name": "HTTP GET /api/users",
+        "start_time": "2024-03-06T10:00:00Z",
+        "end_time": "2024-03-06T10:00:01Z",
+        "attributes": {
+          "http.method": "GET",
+          "http.url": "http://api.example.com/api/users",
+          "http.status_code": "200"
+        },
+        "events": [
+          {
+            "time": "2024-03-06T10:00:00.1Z",
+            "name": "request_started",
+            "attributes": {
+              "http.request_size": "1024"
+            }
+          },
+          {
+            "time": "2024-03-06T10:00:00.9Z",
+            "name": "response_received",
+            "attributes": {
+              "http.response_size": "2048"
+            }
+          }
+        ]
+      }
+    ],
+    "start_time": "2024-03-06T10:00:00Z",
+    "end_time": "2024-03-06T10:00:01Z",
+    "attributes": {
+      "service.name": "api-gateway"
+    }
+  }
+] 

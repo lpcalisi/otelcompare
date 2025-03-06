@@ -1,0 +1,81 @@
+[
+  {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4737",
+    "spans": [
+      {
+        "span_id": "00f067aa0ba902b8",
+        "parent_span_id": "",
+        "name": "HTTP POST /api/orders",
+        "start_time": "2024-03-06T10:01:00Z",
+        "end_time": "2024-03-06T10:01:02Z",
+        "attributes": {
+          "http.method": "POST",
+          "http.url": "http://api.example.com/api/orders",
+          "http.status_code": "201"
+        },
+        "events": [
+          {
+            "time": "2024-03-06T10:01:00.1Z",
+            "name": "request_started",
+            "attributes": {
+              "http.request_size": "2048"
+            }
+          }
+        ]
+      },
+      {
+        "span_id": "00f067aa0ba902b9",
+        "parent_span_id": "00f067aa0ba902b8",
+        "name": "DB Insert Order",
+        "start_time": "2024-03-06T10:01:00.5Z",
+        "end_time": "2024-03-06T10:01:01.5Z",
+        "attributes": {
+          "db.system": "postgresql",
+          "db.name": "orders_db",
+          "db.operation": "insert"
+        },
+        "events": [
+          {
+            "time": "2024-03-06T10:01:00.6Z",
+            "name": "db.query_started",
+            "attributes": {
+              "db.statement": "INSERT INTO orders (id, user_id, amount) VALUES ($1, $2, $3)"
+            }
+          },
+          {
+            "time": "2024-03-06T10:01:01.4Z",
+            "name": "db.query_completed",
+            "attributes": {
+              "db.rows_affected": "1"
+            }
+          }
+        ]
+      },
+      {
+        "span_id": "00f067aa0ba902ba",
+        "parent_span_id": "00f067aa0ba902b8",
+        "name": "Send Order Confirmation Email",
+        "start_time": "2024-03-06T10:01:01.6Z",
+        "end_time": "2024-03-06T10:01:01.8Z",
+        "attributes": {
+          "messaging.system": "smtp",
+          "messaging.operation": "send"
+        },
+        "events": [
+          {
+            "time": "2024-03-06T10:01:01.7Z",
+            "name": "email.sent",
+            "attributes": {
+              "email.recipient": "user@example.com"
+            }
+          }
+        ]
+      }
+    ],
+    "start_time": "2024-03-06T10:01:00Z",
+    "end_time": "2024-03-06T10:01:02Z",
+    "attributes": {
+      "service.name": "order-service"
+    }
+  }
+] 
