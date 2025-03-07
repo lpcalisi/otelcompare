@@ -1,6 +1,6 @@
-module github.com/lcalisi/otel-html-viewer
+module github.com/lpcalisi/otelcompare
 
-go 1.21
+go 1.23
 
 require (
 	github.com/google/go-github/v60 v60.0.0

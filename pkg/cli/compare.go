@@ -1,21 +1,21 @@
-package main
+package cli
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/lcalisi/otel-html-viewer/pkg/github"
-	"github.com/lcalisi/otel-html-viewer/pkg/trace"
+	"github.com/lpcalisi/otelcompare/pkg/github"
+	"github.com/lpcalisi/otelcompare/pkg/trace"
 	"github.com/spf13/cobra"
 )
 
 var (
 	compareInputFiles []string
 	comparePrNumber   int
-	compareToken      string
 	compareOwner      string
 	compareRepo       string
 	compareAttribute  string
+	compareDryRun     bool
 )
 
 var compareCmd = &cobra.Command{
@@ -23,8 +23,8 @@ var compareCmd = &cobra.Command{
 	Short: "Compare traces between different files",
 	Long: `Compare traces between different files and generate a markdown report.
 For example:
-  otel-html-viewer compare -i file1.json -i file2.json -i file3.json
-  otel-html-viewer compare -i file1.json -i file2.json -a http.url`,
+  otelcompare compare -i file1.json -i file2.json -i file3.json
+  otelcompare compare -i file1.json -i file2.json -a http.url`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(compareInputFiles) < 2 {
 			return fmt.Errorf("at least two input files are required for comparison")
@@ -52,30 +52,38 @@ For example:
 		// Compare traces using the specified attribute
 		markdown := trace.CompareMultipleTraces(traceSets, compareAttribute)
 
-		// Check if we should comment on GitHub
-		if compareToken != "" && comparePrNumber > 0 && compareOwner != "" && compareRepo != "" {
-			client := github.NewClient(compareToken)
-			return client.CommentPR(compareOwner, compareRepo, comparePrNumber, markdown)
+		// If dry-run, just print to stdout
+		if compareDryRun {
+			fmt.Print(markdown)
+			return nil
 		}
 
-		// Otherwise, print to stdout
-		fmt.Print(markdown)
-		return nil
+		// Validate GitHub flags if not dry-run
+		if compareOwner == "" || compareRepo == "" {
+			return fmt.Errorf("--owner and --repo are required when not using --dry-run")
+		}
+
+		// Get GitHub token from environment
+		token := os.Getenv("GITHUB_TOKEN")
+		if token == "" {
+			return fmt.Errorf("GITHUB_TOKEN environment variable is required when not using --dry-run")
+		}
+
+		// Comment on GitHub
+		client := github.NewClient(token)
+		return client.CommentPR(compareOwner, compareRepo, comparePrNumber, markdown)
 	},
 }
 
 func init() {
 	compareCmd.Flags().StringArrayVarP(&compareInputFiles, "input", "i", []string{}, "Input JSON files to compare")
 	compareCmd.Flags().IntVarP(&comparePrNumber, "pr", "p", 0, "Pull request number to comment on")
-	compareCmd.Flags().StringVarP(&compareToken, "token", "t", "", "GitHub token for PR comments")
 	compareCmd.Flags().StringVar(&compareOwner, "owner", "", "GitHub repository owner")
 	compareCmd.Flags().StringVar(&compareRepo, "repo", "", "GitHub repository name")
-	compareCmd.Flags().StringVarP(&compareAttribute, "attribute", "a", "name", "Attribute to use for trace identification (default: span name)")
+	compareCmd.Flags().StringVarP(&compareAttribute, "attribute", "a", "trace_id", "Attribute to use for trace identification (default: span name)")
+	compareCmd.Flags().BoolVar(&compareDryRun, "dry-run", false, "Print comment to stdout without posting to GitHub")
 
 	compareCmd.MarkFlagRequired("input")
-	compareCmd.MarkFlagRequired("token")
-	compareCmd.MarkFlagRequired("owner")
-	compareCmd.MarkFlagRequired("repo")
 
 	rootCmd.AddCommand(compareCmd)
 }

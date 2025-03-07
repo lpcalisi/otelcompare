@@ -1,9 +1,13 @@
 package main
 
-import "log"
+import (
+	"log"
+
+	"github.com/lpcalisi/otelcompare/pkg/cli"
+)
 
 func main() {
-	if err := Execute(); err != nil {
+	if err := cli.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }

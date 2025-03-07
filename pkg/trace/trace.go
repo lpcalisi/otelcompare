@@ -49,23 +49,6 @@ func ParseTraces(data []byte) ([]Trace, error) {
 	return traces, nil
 }
 
-// getTraceName gets a descriptive name for a trace based on its spans
-func getTraceName(t Trace) string {
-	// Try to find a root span (no parent)
-	for _, span := range t.Spans {
-		if span.ParentSpanID == "" {
-			return span.Name
-		}
-	}
-
-	// If no root span found, use the first span's name
-	if len(t.Spans) > 0 {
-		return t.Spans[0].Name
-	}
-
-	return "Unknown Trace"
-}
-
 // GenerateMarkdown generates a Markdown representation of the traces
 func GenerateMarkdown(traces []Trace) string {
 	var sb strings.Builder
@@ -94,7 +77,7 @@ func GenerateMarkdown(traces []Trace) string {
 
 	for _, t := range traces {
 		duration := getTraceDuration(t)
-		traceName := getTraceName(t)
+		traceName := getTraceIdentifier(t, "name")
 		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %d |\n",
 			truncateID(t.TraceID),
 			traceName,
@@ -133,7 +116,7 @@ func GenerateMarkdown(traces []Trace) string {
 	// Expandable details for each trace
 	sb.WriteString("\n**Trace Details:**\n\n")
 	for _, t := range traces {
-		sb.WriteString(fmt.Sprintf("<details>\n<summary>Trace %s (%s)</summary>\n\n", truncateID(t.TraceID), getTraceName(t)))
+		sb.WriteString(fmt.Sprintf("<details>\n<summary>Trace %s (%s)</summary>\n\n", truncateID(t.TraceID), getTraceIdentifier(t, "name")))
 
 		// Show trace attributes
 		if len(t.Attributes) > 0 {
@@ -248,12 +231,12 @@ func CompareTraces(traces1, traces2 []Trace) string {
 	traces2Map := make(map[string]*Trace)
 
 	for i := range traces1 {
-		name := getTraceName(traces1[i])
+		name := getTraceIdentifier(traces1[i], "name")
 		traces1Map[name] = &traces1[i]
 	}
 
 	for i := range traces2 {
-		name := getTraceName(traces2[i])
+		name := getTraceIdentifier(traces2[i], "name")
 		traces2Map[name] = &traces2[i]
 	}
 
@@ -378,31 +361,42 @@ func CompareTraces(traces1, traces2 []Trace) string {
 	return sb.String()
 }
 
-// Nueva función para obtener el identificador de la traza según el atributo especificado
+// New function to get the trace identifier based on the specified attribute
 func getTraceIdentifier(t Trace, attribute string) string {
-	if attribute == "name" {
-		return getTraceName(t)
-	}
-
-	// Si el atributo es "trace_id", usar el ID de la traza
+	// If the attribute is "trace_id", use the trace ID
 	if attribute == "trace_id" {
 		return t.TraceID
 	}
 
-	// Buscar en los atributos de la traza
+	// If the attribute is "name", find the root span or first span
+	if attribute == "name" {
+		if len(t.Spans) == 0 {
+			return "Unknown Trace"
+		}
+
+		// Try to find a root span (no parent)
+		for _, span := range t.Spans {
+			if span.ParentSpanID == "" {
+				return span.Name
+			}
+		}
+
+		// If no root span found, return the name of the first span
+		return t.Spans[0].Name
+	}
+
+	// Search in trace attributes
 	if value, ok := t.Attributes[attribute]; ok {
-		// Combinar el valor del atributo con el nombre de la traza para evitar colisiones
-		return fmt.Sprintf("%s - %s", value, getTraceName(t))
+		return value
 	}
 
-	// Buscar en los atributos del recurso
+	// Search in resource attributes
 	if value, ok := t.ResourceAttrs[attribute]; ok {
-		// Combinar el valor del atributo con el nombre de la traza para evitar colisiones
-		return fmt.Sprintf("%s - %s", value, getTraceName(t))
+		return value
 	}
 
-	// Si no se encuentra el atributo, usar el nombre del span como fallback
-	return getTraceName(t)
+	// Fallback to trace ID
+	return t.TraceID
 }
 
 // CompareMultipleTraces compares multiple sets of traces and generates a markdown report

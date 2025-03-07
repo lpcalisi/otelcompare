@@ -1,87 +1,70 @@
-# OpenTelemetry HTML Viewer
+# 🔍 OtelCompare
 
-Una herramienta en Go que genera visualizaciones HTML de trazas OpenTelemetry y las compara en Pull Requests de GitHub.
+[![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Características
+OtelCompare is a command-line tool designed to automate the process of analyzing and commenting on traces in GitHub Pull Requests. This tool can operate in two modes:
 
-- Lee archivos JSON con trazas OpenTelemetry
-- Genera visualizaciones HTML interactivas
-- Compara trazas entre diferentes versiones
-- Comenta automáticamente en PRs de GitHub
+1. **Compare Mode** 🔄: Compares traces between different commits or states
+2. **Info Mode** ℹ️: Provides detailed information without comparison
 
-## Instalación
+## 🚀 Features
+
+- Direct GitHub Pull Requests integration
+- Automatic OpenTelemetry trace analysis
+- Detailed comment generation
+- Compare mode for change analysis
+- Info mode for trace documentation
+- Dry-run mode to preview comments
+
+## 📋 Prerequisites
+
+- Go 1.23 or higher
+- GitHub Personal Access Token with PR commenting permissions
+
+## 🛠️ Installation
 
 ```bash
-go install github.com/lcalisi/otel-html-viewer@latest
+go install github.com/lpcalisi/otelcompare@latest
 ```
 
-## Uso
+## 💻 Usage
 
-### Básico
+### Compare Mode
 
 ```bash
-otel-html-viewer -i traces.json -o visualization.html
+otelcompare compare --pr <pr-number> --base <base-commit> --head <head-commit> [--owner <owner> --repo <repo>]
 ```
 
-### Con integración de GitHub
+### Info Mode
 
 ```bash
-otel-html-viewer \
-  -i traces.json \
-  -o visualization.html \
-  -t $GITHUB_TOKEN \
-  -p 123 \
-  --owner tu-usuario \
-  --repo tu-repositorio
+otelcompare info --pr <pr-number> --commit <commit> [--owner <owner> --repo <repo>]
 ```
 
-## Parámetros
+### Dry Run Mode
 
-- `-i, --input`: Archivo JSON con las trazas OpenTelemetry (requerido)
-- `-o, --output`: Archivo HTML de salida (requerido)
-- `-t, --github-token`: Token de GitHub para comentarios en PRs (opcional)
-- `-p, --pr-number`: Número del PR para comentar (opcional)
-- `--owner`: Propietario del repositorio (opcional)
-- `--repo`: Nombre del repositorio (opcional)
+Both commands support a `--dry-run` flag that will print the comment to stdout without posting it to GitHub:
 
-## Formato del JSON de entrada
-
-El archivo JSON de entrada debe contener un array de trazas en el siguiente formato:
-
-```json
-[
-  {
-    "trace_id": "string",
-    "spans": [
-      {
-        "span_id": "string",
-        "parent_span_id": "string",
-        "name": "string",
-        "start_time": "timestamp",
-        "end_time": "timestamp",
-        "attributes": {
-          "key": "value"
-        },
-        "events": [
-          {
-            "time": "timestamp",
-            "name": "string",
-            "attributes": {
-              "key": "value"
-            }
-          }
-        ]
-      }
-    ],
-    "start_time": "timestamp",
-    "end_time": "timestamp",
-    "attributes": {
-      "key": "value"
-    }
-  }
-]
+```bash
+otelcompare compare --pr <pr-number> --base <base-commit> --head <head-commit> --dry-run
+otelcompare info --pr <pr-number> --commit <commit> --dry-run
 ```
 
-## Contribuir
+When using `--dry-run`, the GitHub-specific flags (`--owner` and `--repo`) are not required.
 
-Las contribuciones son bienvenidas. Por favor, abre un issue para discutir los cambios que te gustaría hacer. 
+## ⚙️ Configuration
+
+The tool requires a GitHub token to be set in environment variables:
+
+```bash
+export GITHUB_TOKEN=your-token-here
+```
+
+## 🤝 Contributing
+
+Contributions are welcome. Please open an issue first to discuss the changes you would like to make.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
