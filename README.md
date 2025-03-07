@@ -5,8 +5,8 @@
 
 OtelCompare is a command-line tool designed to automate the process of analyzing and commenting on traces in GitHub Pull Requests. This tool can operate in two modes:
 
-1. **Compare Mode** 🔄: Compares traces between different commits or states
-2. **Info Mode** ℹ️: Provides detailed information without comparison
+1. **Compare Mode** 🔄: Compares traces between different files
+2. **Info Mode** ℹ️: Provides detailed information about traces in a single file
 
 ## 🚀 Features
 
@@ -33,25 +33,29 @@ go install github.com/lpcalisi/otelcompare@latest
 ### Compare Mode
 
 ```bash
-otelcompare compare --pr <pr-number> --base <base-commit> --head <head-commit> [--owner <owner> --repo <repo>]
+otelcompare compare -i examples/modified.json -i examples/baseline.json [--pr <pr-number> --owner <owner> --repo <repo>] [--attribute <attr>]
 ```
+
+The compare command requires at least two input files to compare. You can specify the attribute to use for trace identification with `--attribute` (default: "trace_id").
 
 ### Info Mode
 
 ```bash
-otelcompare info --pr <pr-number> --commit <commit> [--owner <owner> --repo <repo>]
+otelcompare info -i file.json [--pr <pr-number> --owner <owner> --repo <repo>]
 ```
+
+The info command analyzes a single trace file and generates a detailed report. The GitHub-specific flags (`--pr`, `--owner`, and `--repo`) are only required when posting to GitHub.
 
 ### Dry Run Mode
 
 Both commands support a `--dry-run` flag that will print the comment to stdout without posting it to GitHub:
 
 ```bash
-otelcompare compare --pr <pr-number> --base <base-commit> --head <head-commit> --dry-run
-otelcompare info --pr <pr-number> --commit <commit> --dry-run
+otelcompare compare -i examples/modified.json -i examples/baseline.json --dry-run
+otelcompare info -i file.json --dry-run
 ```
 
-When using `--dry-run`, the GitHub-specific flags (`--owner` and `--repo`) are not required.
+When using `--dry-run`, the GitHub-specific flags (`--pr`, `--owner`, and `--repo`) are not required.
 
 ## ⚙️ Configuration
 

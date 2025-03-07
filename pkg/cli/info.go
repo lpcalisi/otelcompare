@@ -34,7 +34,6 @@ func init() {
 	infoCmd.Flags().BoolVar(&infoDryRun, "dry-run", false, "Print comment to stdout without posting to GitHub")
 
 	infoCmd.MarkFlagRequired("input")
-	infoCmd.MarkFlagRequired("pr")
 
 	rootCmd.AddCommand(infoCmd)
 }
@@ -63,6 +62,9 @@ func runInfo(inputFile string) error {
 	}
 
 	// Validate GitHub flags if not dry-run
+	if infoPrNumber == 0 {
+		return fmt.Errorf("--pr is required when not using --dry-run")
+	}
 	if infoOwner == "" || infoRepo == "" {
 		return fmt.Errorf("--owner and --repo are required when not using --dry-run")
 	}
