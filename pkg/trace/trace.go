@@ -209,6 +209,10 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
+func getFileNameWithoutExt(fileName string) string {
+	return strings.TrimSuffix(fileName, ".json")
+}
+
 func getTraceDuration(t Trace) time.Duration {
 	if len(t.Spans) == 0 {
 		return 0
@@ -409,7 +413,7 @@ func CompareMultipleTraces(traceSets []TraceSet) string {
 	sb.WriteString("**Comparison Summary:**\n\n")
 	sb.WriteString("| Trace Name |")
 	for _, set := range traceSets {
-		sb.WriteString(fmt.Sprintf(" %s |", set.Name))
+		sb.WriteString(fmt.Sprintf(" %s |", getFileNameWithoutExt(set.Name)))
 	}
 	sb.WriteString(" Duration Diff |\n|------------")
 	for range traceSets {
@@ -485,11 +489,59 @@ func CompareMultipleTraces(traceSets []TraceSet) string {
 		if existsInAll {
 			sb.WriteString(fmt.Sprintf("<details>\n<summary>%s</summary>\n\n", name))
 
+			// Show trace attributes
+			sb.WriteString("**Trace Attributes:**\n\n")
+			sb.WriteString("| Attribute |")
+			for _, set := range traceSets {
+				sb.WriteString(fmt.Sprintf(" %s |", getFileNameWithoutExt(set.Name)))
+			}
+			sb.WriteString("\n|-----------")
+			for range traceSets {
+				sb.WriteString("|-----------")
+			}
+			sb.WriteString("|\n")
+
+			// Get all unique attribute keys
+			allAttrKeys := make(map[string]bool)
+			for _, traceMap := range traceMaps {
+				trace := traceMap[name]
+				for k := range trace.Attributes {
+					allAttrKeys[k] = true
+				}
+				for k := range trace.ResourceAttrs {
+					allAttrKeys[k] = true
+				}
+			}
+
+			// Convert to slice and sort
+			var attrKeys []string
+			for k := range allAttrKeys {
+				attrKeys = append(attrKeys, k)
+			}
+			sort.Strings(attrKeys)
+
+			// Show attribute values for each set
+			for _, key := range attrKeys {
+				sb.WriteString(fmt.Sprintf("| %s |", key))
+				for i, _ := range traceSets {
+					trace := traceMaps[i][name]
+					var value string
+					if v, ok := trace.Attributes[key]; ok {
+						value = v
+					} else if v, ok := trace.ResourceAttrs[key]; ok {
+						value = v
+					}
+					sb.WriteString(fmt.Sprintf(" %s |", value))
+				}
+				sb.WriteString("\n")
+			}
+			sb.WriteString("\n")
+
 			// Compare spans
 			sb.WriteString("**Span Comparison:**\n\n")
 			sb.WriteString("| Span Name |")
 			for _, set := range traceSets {
-				sb.WriteString(fmt.Sprintf(" %s |", set.Name))
+				sb.WriteString(fmt.Sprintf(" %s |", getFileNameWithoutExt(set.Name)))
 			}
 			sb.WriteString("\n|-----------")
 			for range traceSets {
@@ -526,6 +578,24 @@ func CompareMultipleTraces(traceSets []TraceSet) string {
 						}
 					}
 					sb.WriteString(fmt.Sprintf(" %s |", formatDuration(duration)))
+				}
+				sb.WriteString("\n")
+
+				// Show span attributes
+				sb.WriteString("| Attributes |")
+				for i, _ := range traceSets {
+					trace := traceMaps[i][name]
+					var attrs []string
+					for _, span := range trace.Spans {
+						if span.Name == spanName {
+							for k, v := range span.Attributes {
+								attrs = append(attrs, fmt.Sprintf("%s: %s", k, v))
+							}
+							break
+						}
+					}
+					sort.Strings(attrs)
+					sb.WriteString(fmt.Sprintf(" %s |", strings.Join(attrs, "<br> ")))
 				}
 				sb.WriteString("\n")
 			}
