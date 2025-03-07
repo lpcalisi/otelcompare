@@ -55,8 +55,8 @@ func GenerateMarkdown(traces []Trace) string {
 
 	// First table: Overview of traces
 	sb.WriteString("**Traces Overview:**\n\n")
-	sb.WriteString("| Trace ID | Trace Name | Duration | Spans |\n")
-	sb.WriteString("|----------|------------|----------|-------|\n")
+	sb.WriteString("| Trace ID | Duration | Spans |\n")
+	sb.WriteString("|----------|----------|-------|\n")
 
 	// Create a map to quickly access spans by trace ID
 	traceSpanMaps := make(map[string]map[string]*Span)
@@ -77,10 +77,8 @@ func GenerateMarkdown(traces []Trace) string {
 
 	for _, t := range traces {
 		duration := getTraceDuration(t)
-		traceName := getTraceIdentifier(t, "name")
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %d |\n",
-			truncateID(t.TraceID),
-			traceName,
+		sb.WriteString(fmt.Sprintf("| `%s` | %s | %d |\n",
+			t.TraceID,
 			formatDuration(duration),
 			len(t.Spans)))
 	}
@@ -105,7 +103,7 @@ func GenerateMarkdown(traces []Trace) string {
 				}
 			}
 			sb.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | %s | %s |\n",
-				truncateID(t.TraceID),
+				t.TraceID,
 				truncateID(span.SpanID),
 				span.Name,
 				formatDuration(span.EndTime.Sub(span.StartTime)),
@@ -116,7 +114,7 @@ func GenerateMarkdown(traces []Trace) string {
 	// Expandable details for each trace
 	sb.WriteString("\n**Trace Details:**\n\n")
 	for _, t := range traces {
-		sb.WriteString(fmt.Sprintf("<details>\n<summary>Trace %s (%s)</summary>\n\n", truncateID(t.TraceID), getTraceIdentifier(t, "name")))
+		sb.WriteString(fmt.Sprintf("<details>\n<summary>Trace %s</summary>\n\n", t.TraceID))
 
 		// Show trace attributes
 		if len(t.Attributes) > 0 {
