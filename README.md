@@ -41,7 +41,7 @@ The compare command requires at least two input files to compare. You can specif
 ### Info Mode
 
 ```bash
-otelcompare info -i file.json [--pr <pr-number> --owner <owner> --repo <repo>]
+otelcompare info -i examples/baseline.json [--pr <pr-number> --owner <owner> --repo <repo>]
 ```
 
 The info command analyzes a single trace file and generates a detailed report. The GitHub-specific flags (`--pr`, `--owner`, and `--repo`) are only required when posting to GitHub.
@@ -52,7 +52,7 @@ Both commands support a `--dry-run` flag that will print the comment to stdout w
 
 ```bash
 otelcompare compare -i examples/modified.json -i examples/baseline.json --dry-run
-otelcompare info -i file.json --dry-run
+otelcompare info -i examples/baseline.json --dry-run
 ```
 
 When using `--dry-run`, the GitHub-specific flags (`--pr`, `--owner`, and `--repo`) are not required.
