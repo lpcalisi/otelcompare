@@ -543,11 +543,11 @@ func CompareMultipleTraces(traceSets []TraceSet) string {
 			for _, set := range traceSets {
 				sb.WriteString(fmt.Sprintf(" %s |", getFileNameWithoutExt(set.Name)))
 			}
-			sb.WriteString("\n|-----------")
+			sb.WriteString(" Duration Diff |\n|-----------")
 			for range traceSets {
 				sb.WriteString("|-----------")
 			}
-			sb.WriteString("|\n")
+			sb.WriteString("|------------|\n")
 
 			// Get all unique span names
 			allSpanNames := make(map[string]bool)
@@ -568,18 +568,61 @@ func CompareMultipleTraces(traceSets []TraceSet) string {
 			// Show span durations for each set
 			for _, spanName := range spanNames {
 				sb.WriteString(fmt.Sprintf("| %s |", spanName))
+				var spanDurations []time.Duration
 				for i, _ := range traceSets {
 					trace := traceMaps[i][name]
 					var duration time.Duration
+					found := false
 					for _, span := range trace.Spans {
 						if span.Name == spanName {
 							duration = span.EndTime.Sub(span.StartTime)
+							found = true
 							break
 						}
 					}
-					sb.WriteString(fmt.Sprintf(" %s |", formatDuration(duration)))
+					if found {
+						sb.WriteString(fmt.Sprintf(" %s |", formatDuration(duration)))
+						spanDurations = append(spanDurations, duration)
+					} else {
+						sb.WriteString(" ✗ |")
+						spanDurations = append(spanDurations, 0)
+					}
 				}
-				sb.WriteString("\n")
+
+				// Calculate and show duration difference for spans
+				if len(spanDurations) > 1 {
+					firstDuration := spanDurations[0]
+					isSlowerThanAny := false
+					var maxDiff time.Duration
+
+					// Compare first duration with all others
+					for i := 1; i < len(spanDurations); i++ {
+						if spanDurations[i] > 0 { // Only compare with existing spans
+							diff := spanDurations[i] - firstDuration
+							if diff < 0 {
+								diff = -diff
+							}
+							if diff > maxDiff {
+								maxDiff = diff
+							}
+							if firstDuration > spanDurations[i] {
+								isSlowerThanAny = true
+							}
+						}
+					}
+
+					if maxDiff > 0 {
+						indicator := "🔴"
+						if isSlowerThanAny {
+							indicator = "🟢"
+						}
+						sb.WriteString(fmt.Sprintf(" %s %s |\n", indicator, formatDuration(maxDiff)))
+					} else {
+						sb.WriteString(" - |\n")
+					}
+				} else {
+					sb.WriteString(" - |\n")
+				}
 
 				// Show span attributes
 				sb.WriteString("| Attributes |")
