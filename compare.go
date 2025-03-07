@@ -15,6 +15,7 @@ var (
 	compareToken      string
 	compareOwner      string
 	compareRepo       string
+	compareAttribute  string
 )
 
 var compareCmd = &cobra.Command{
@@ -22,7 +23,8 @@ var compareCmd = &cobra.Command{
 	Short: "Compare traces between different files",
 	Long: `Compare traces between different files and generate a markdown report.
 For example:
-  otel-html-viewer compare -i file1.json -i file2.json -i file3.json`,
+  otel-html-viewer compare -i file1.json -i file2.json -i file3.json
+  otel-html-viewer compare -i file1.json -i file2.json -a http.url`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(compareInputFiles) < 2 {
 			return fmt.Errorf("at least two input files are required for comparison")
@@ -47,8 +49,8 @@ For example:
 			})
 		}
 
-		// Compare traces
-		markdown := trace.CompareMultipleTraces(traceSets)
+		// Compare traces using the specified attribute
+		markdown := trace.CompareMultipleTraces(traceSets, compareAttribute)
 
 		// Check if we should comment on GitHub
 		if compareToken != "" && comparePrNumber > 0 && compareOwner != "" && compareRepo != "" {
@@ -68,6 +70,7 @@ func init() {
 	compareCmd.Flags().StringVarP(&compareToken, "token", "t", "", "GitHub token for PR comments")
 	compareCmd.Flags().StringVar(&compareOwner, "owner", "", "GitHub repository owner")
 	compareCmd.Flags().StringVar(&compareRepo, "repo", "", "GitHub repository name")
+	compareCmd.Flags().StringVarP(&compareAttribute, "attribute", "a", "name", "Attribute to use for trace identification (default: span name)")
 
 	compareCmd.MarkFlagRequired("input")
 	compareCmd.MarkFlagRequired("token")

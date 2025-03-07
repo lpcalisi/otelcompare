@@ -378,19 +378,46 @@ func CompareTraces(traces1, traces2 []Trace) string {
 	return sb.String()
 }
 
+// Nueva función para obtener el identificador de la traza según el atributo especificado
+func getTraceIdentifier(t Trace, attribute string) string {
+	if attribute == "name" {
+		return getTraceName(t)
+	}
+
+	// Si el atributo es "trace_id", usar el ID de la traza
+	if attribute == "trace_id" {
+		return t.TraceID
+	}
+
+	// Buscar en los atributos de la traza
+	if value, ok := t.Attributes[attribute]; ok {
+		// Combinar el valor del atributo con el nombre de la traza para evitar colisiones
+		return fmt.Sprintf("%s - %s", value, getTraceName(t))
+	}
+
+	// Buscar en los atributos del recurso
+	if value, ok := t.ResourceAttrs[attribute]; ok {
+		// Combinar el valor del atributo con el nombre de la traza para evitar colisiones
+		return fmt.Sprintf("%s - %s", value, getTraceName(t))
+	}
+
+	// Si no se encuentra el atributo, usar el nombre del span como fallback
+	return getTraceName(t)
+}
+
 // CompareMultipleTraces compares multiple sets of traces and generates a markdown report
-func CompareMultipleTraces(traceSets []TraceSet) string {
+func CompareMultipleTraces(traceSets []TraceSet, attribute string) string {
 	var sb strings.Builder
 
 	sb.WriteString("### Multiple Traces Comparison\n\n")
 
-	// Create maps of traces by name for each set
+	// Create maps of traces by attribute for each set
 	traceMaps := make([]map[string]*Trace, len(traceSets))
 	for i, set := range traceSets {
 		traceMaps[i] = make(map[string]*Trace)
 		for j := range set.Traces {
-			name := getTraceName(set.Traces[j])
-			traceMaps[i][name] = &set.Traces[j]
+			identifier := getTraceIdentifier(set.Traces[j], attribute)
+			traceMaps[i][identifier] = &set.Traces[j]
 		}
 	}
 
